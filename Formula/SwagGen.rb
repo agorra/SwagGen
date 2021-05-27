@@ -2,7 +2,7 @@ class Swaggen < Formula
   desc "Swagger/OpenAPISpec code generator written in Swift"
   homepage "https://github.com/agorra/SwagGen"
   url "https://github.com/agorra/SwagGen/archive/5.0.0.tar.gz"
-  sha256 "73fb2f6eb9f4c54aa6f768fd9accfed904558bf68ec2443ded42f44d0c2a9686"
+  sha256 "02a2e9166759ada28f410f1384cd72d15defb904e177adb989f324904beef8db"
   head "https://github.com/agorra/SwagGen.git"
 
   depends_on :xcode
