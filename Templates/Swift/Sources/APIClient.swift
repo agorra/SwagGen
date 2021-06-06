@@ -20,16 +20,20 @@ public class APIClient {
     /// These headers will get added to every request
     public var defaultHeaders: [String: String]
 
+    /// HTTP response codes for which empty response bodies are considered appropriate. `[204, 205]` by default.
+    public var emptyResponseCodes: Set<Int>
+
     public var jsonDecoder = JSONDecoder()
     public var jsonEncoder = JSONEncoder()
 
     public var decodingQueue = DispatchQueue(label: "apiClient", qos: .utility, attributes: .concurrent)
 
-    public init(baseURL: String, sessionManager: Session = .default, defaultHeaders: [String: String] = [:], behaviours: [RequestBehaviour] = []) {
+    public init(baseURL: String, sessionManager: Session = .default, defaultHeaders: [String: String] = [:], behaviours: [RequestBehaviour] = [], emptyResponseCodes: Set<Int> = DataResponseSerializer.defaultEmptyResponseCodes) {
         self.baseURL = baseURL
         self.sessionManager = sessionManager
         self.behaviours = behaviours
         self.defaultHeaders = defaultHeaders
+        self.emptyResponseCodes = emptyResponseCodes
         jsonDecoder.dateDecodingStrategy = .custom(dateDecoder)
         jsonEncoder.dateEncodingStrategy = .formatted({{ options.name }}.dateEncodingFormatter)
     }
@@ -124,7 +128,7 @@ public class APIClient {
             )
         } else {
             let networkRequest = sessionManager.request(urlRequest)
-                .responseData(queue: decodingQueue) { dataResponse in
+                .responseData(queue: decodingQueue, emptyResponseCodes: self.emptyResponseCodes) { dataResponse in
                     self.handleResponse(request: request, requestBehaviour: requestBehaviour, dataResponse: dataResponse, completionQueue: completionQueue, complete: complete)
 
             }
