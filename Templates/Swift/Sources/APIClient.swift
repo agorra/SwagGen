@@ -23,17 +23,28 @@ public class APIClient {
     /// HTTP response codes for which empty response bodies are considered appropriate. `[204, 205]` by default.
     public var emptyResponseCodes: Set<Int>
 
+    /// HTTP response codes for which response are considered success. `200..<300` by default
+    public var acceptableStatusCodes: Range<Int>
+
     public var jsonDecoder = JSONDecoder()
     public var jsonEncoder = JSONEncoder()
 
     public var decodingQueue = DispatchQueue(label: "apiClient", qos: .utility, attributes: .concurrent)
 
-    public init(baseURL: String, sessionManager: Session = .default, defaultHeaders: [String: String] = [:], behaviours: [RequestBehaviour] = [], emptyResponseCodes: Set<Int> = DataResponseSerializer.defaultEmptyResponseCodes) {
+    public init(
+        baseURL: String, 
+        sessionManager: Session = .default, 
+        defaultHeaders: [String: String] = [:], 
+        behaviours: [RequestBehaviour] = [], 
+        emptyResponseCodes: Set<Int> = DataResponseSerializer.defaultEmptyResponseCodes,
+        acceptableStatusCodes: Range<Int> = 200..<300
+    ) {
         self.baseURL = baseURL
         self.sessionManager = sessionManager
         self.behaviours = behaviours
         self.defaultHeaders = defaultHeaders
         self.emptyResponseCodes = emptyResponseCodes
+        self.acceptableStatusCodes = acceptableStatusCodes
         jsonDecoder.dateDecodingStrategy = .custom(dateDecoder)
         jsonEncoder.dateEncodingStrategy = .formatted({{ options.name }}.dateEncodingFormatter)
     }
@@ -127,11 +138,21 @@ public class APIClient {
                 with: urlRequest
             )
         } else {
-            let networkRequest = sessionManager.request(urlRequest)
-                .responseData(queue: decodingQueue, emptyResponseCodes: self.emptyResponseCodes) { dataResponse in
-                    self.handleResponse(request: request, requestBehaviour: requestBehaviour, dataResponse: dataResponse, completionQueue: completionQueue, complete: complete)
-
-            }
+            let networkRequest = sessionManager
+                .request(urlRequest, interceptor: requestInterceptor)
+                .validate(statusCode: self.acceptableStatusCodes)
+                .responseData(
+                    queue: decodingQueue, 
+                    emptyResponseCodes: self.emptyResponseCodes
+                ) { dataResponse in
+                    self.handleResponse(
+                        request: request, 
+                        requestBehaviour: requestBehaviour, 
+                        dataResponse: dataResponse, 
+                        completionQueue: completionQueue, 
+                        complete: complete
+                    )
+                }
             cancellableRequest.networkRequest = networkRequest
         }
     }
