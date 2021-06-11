@@ -58,7 +58,13 @@ public class APIClient {
     ///   - complete: A closure that gets passed the APIResponse
     /// - Returns: A cancellable request. Not that cancellation will only work after any validation RequestBehaviours have run
     @discardableResult
-    public func makeRequest<T>(_ request: APIRequest<T>, behaviours: [RequestBehaviour] = [], completionQueue: DispatchQueue = DispatchQueue.main, complete: @escaping (APIResponse<T>) -> Void) -> CancellableRequest? {
+    public func makeRequest<T>(
+        _ request: APIRequest<T>, 
+        behaviours: [RequestBehaviour] = [], 
+        interceptor: RequestInterceptor? = nil,
+        completionQueue: DispatchQueue = .main, 
+        complete: @escaping (APIResponse<T>) -> Void
+    ) -> CancellableRequest? {
         // create composite behaviour to make it easy to call functions on array of behaviours
         let requestBehaviour = RequestBehaviourGroup(request: request, behaviours: self.behaviours + behaviours)
 
@@ -93,7 +99,15 @@ public class APIClient {
         requestBehaviour.validate(urlRequest) { result in
             switch result {
             case .success(let urlRequest):
-                self.makeNetworkRequest(request: request, urlRequest: urlRequest, cancellableRequest: cancellableRequest, requestBehaviour: requestBehaviour, completionQueue: completionQueue, complete: complete)
+                self.makeNetworkRequest(
+                    request: request, 
+                    urlRequest: urlRequest, 
+                    cancellableRequest: cancellableRequest, 
+                    requestBehaviour: requestBehaviour,
+                    requestInterceptor: interceptor,
+                    completionQueue: completionQueue, 
+                    complete: complete
+                )
             case .failure(let error):
                 let error = APIClientError.validationError(error)
                 let response = APIResponse<T>(request: request, result: .failure(error), urlRequest: urlRequest)
@@ -104,7 +118,15 @@ public class APIClient {
         return cancellableRequest
     }
 
-    private func makeNetworkRequest<T>(request: APIRequest<T>, urlRequest: URLRequest, cancellableRequest: CancellableRequest, requestBehaviour: RequestBehaviourGroup, completionQueue: DispatchQueue, complete: @escaping (APIResponse<T>) -> Void) {
+    private func makeNetworkRequest<T>(
+        request: APIRequest<T>, 
+        urlRequest: URLRequest, 
+        cancellableRequest: CancellableRequest, 
+        requestBehaviour: RequestBehaviourGroup,
+        requestInterceptor: RequestInterceptor?, 
+        completionQueue: DispatchQueue, 
+        complete: @escaping (APIResponse<T>) -> Void) 
+    {
         requestBehaviour.beforeSend()
 
         if request.service.isUpload {
