@@ -209,7 +209,13 @@ public class APIClient {
                 requestBehaviour.onFailure(error: apiError)
             }
         case .failure(let error):
-            let apiError = APIClientError.networkError(error)
+            let apiError: APIClientError
+            
+            if let statusCode = dataResponse.response?.statusCode {
+                apiError = APIClientError.networkError(error: error, statusCode: statusCode, data: dataResponse.data)
+            } else {
+                apiError = APIClientError.unknownError(error)
+            }
             result = .failure(apiError)
             requestBehaviour.onFailure(error: apiError)
         }

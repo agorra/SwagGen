@@ -7,7 +7,7 @@ public enum APIClientError: Error {
     case decodingError(DecodingError)
     case requestEncodingError(Error)
     case validationError(Error)
-    case networkError(Error)
+    case networkError(error: Error, statusCode: Int, data: Data?)
     case unknownError(Error)
 
     public var name:String {
@@ -30,7 +30,7 @@ extension APIClientError: CustomStringConvertible {
         case .decodingError(let error): return "\(name): \(error.localizedDescription)\n\(error)"
         case .validationError(let error): return "\(name): \(error.localizedDescription)"
         case .requestEncodingError(let error): return "\(name): \(error)"
-        case .networkError(let error): return "\(name): \(error.localizedDescription)"
+        case .networkError(let error, let statusCode, let data): return "\(name): \(statusCode) \(error.localizedDescription)"
         case .unknownError(let error): return "\(name): \(error.localizedDescription)"
         }
     }
