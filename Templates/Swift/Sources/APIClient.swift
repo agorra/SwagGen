@@ -77,7 +77,7 @@ public class APIClient {
 
             urlRequest = try request.createURLRequest(baseURL: safeURL, encoder: jsonEncoder)
         } catch {
-            let error = APIClientError.requestEncodingError(error)
+            let error = APIClientError.requestError(.encodingError(error))
             requestBehaviour.onFailure(error: error)
             let response = APIResponse<T>(request: request, result: .failure(error))
             complete(response)
@@ -109,7 +109,7 @@ public class APIClient {
                     complete: complete
                 )
             case .failure(let error):
-                let error = APIClientError.validationError(error)
+                let error = APIClientError.requestError(.validationError(error))
                 let response = APIResponse<T>(request: request, result: .failure(error), urlRequest: urlRequest)
                 requestBehaviour.onFailure(error: error)
                 complete(response)
@@ -179,17 +179,26 @@ public class APIClient {
         }
     }
 
-    private func handleResponse<T>(request: APIRequest<T>, requestBehaviour: RequestBehaviourGroup, dataResponse: AFDataResponse<Data>, completionQueue: DispatchQueue, complete: @escaping (APIResponse<T>) -> Void) {
-
-        let result: APIResult<T>
+     private func handleResponse<T>(
+        request: APIRequest<T>, 
+        requestBehaviour: RequestBehaviourGroup, 
+        dataResponse: AFDataResponse<Data>, 
+        completionQueue: DispatchQueue, 
+        complete: @escaping (APIResponse<T>) -> Void) 
+     {
+        var result: APIResult<T>
 
         switch dataResponse.result {
         case .success(let value):
-            do {
-                guard let statusCode = dataResponse.response?.statusCode else {
-                    throw InternalError.emptyResponse
-                }
 
+            guard let statusCode = dataResponse.response?.statusCode else {
+                let apiError = APIClientError.responseError(.emptyResponse)
+                result = .failure(apiError)
+                requestBehaviour.onFailure(error: apiError)
+                break
+            }
+
+            do {
                 let decoded = try T(statusCode: statusCode, data: value, decoder: jsonDecoder)
                 result = .success(decoded)
                 if decoded.successful {
@@ -198,28 +207,40 @@ public class APIClient {
             } catch let error {
                 let apiError: APIClientError
                 if let error = error as? DecodingError {
-                    apiError = APIClientError.decodingError(error)
+                    apiError = .responseError(.decodingError(error), statusCode: statusCode, data: value)
                 } else if let error = error as? APIClientError {
                     apiError = error
                 } else {
-                    apiError = APIClientError.unknownError(error)
+                    apiError = .responseError(.networkError(error), statusCode: dataResponse.response?.statusCode, data: value)
                 }
 
                 result = .failure(apiError)
                 requestBehaviour.onFailure(error: apiError)
             }
+
         case .failure(let error):
             let apiError: APIClientError
-            
+
             if let statusCode = dataResponse.response?.statusCode {
-                apiError = APIClientError.networkError(error: error, statusCode: statusCode, data: dataResponse.data)
+                if case let .responseValidationFailed(.unacceptableStatusCode(code)) = error {
+                    apiError = .responseError(.unexpectedStatusCode, statusCode: code, data: dataResponse.data)
+                } else {
+                    apiError = .responseError(.networkError(error), statusCode: statusCode, data: dataResponse.data)
+                }
             } else {
-                apiError = APIClientError.unknownError(error)
+                apiError = .responseError(.networkError(error), data: dataResponse.data)
             }
             result = .failure(apiError)
             requestBehaviour.onFailure(error: apiError)
         }
-        let response = APIResponse<T>(request: request, result: result, urlRequest: dataResponse.request, urlResponse: dataResponse.response, data: dataResponse.data, metrics: dataResponse.metrics)
+        let response = APIResponse<T>(
+            request: request,
+            result: result,
+            urlRequest: dataResponse.request,
+            urlResponse: dataResponse.response,
+            data: dataResponse.data,
+            metrics: dataResponse.metrics
+        )
         requestBehaviour.onResponse(response: response.asAny())
 
         completionQueue.async {

@@ -253,7 +253,7 @@ extension {{ options.name }}{% if tag %}.{{ options.tagPrefix }}{{ tag|upperCame
                 default: self = .{{ defaultResponse.name }}(statusCode: statusCode)
                 {% endif %}
                 {% else %}
-                default: throw APIClientError.unexpectedStatusCode(statusCode: statusCode, data: data)
+                default: throw APIClientError.responseError(.unexpectedStatusCode, statusCode: statusCode, data: data)
                 {% endif %}
                 }
             }

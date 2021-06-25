@@ -3,35 +3,55 @@
 import Foundation
 
 public enum APIClientError: Error {
-    case unexpectedStatusCode(statusCode: Int, data: Data)
-    case decodingError(DecodingError)
-    case requestEncodingError(Error)
-    case validationError(Error)
-    case networkError(error: Error, statusCode: Int, data: Data?)
-    case unknownError(Error)
 
-    public var name:String {
-        switch self {
-        case .unexpectedStatusCode: return "Unexpected status code"
-        case .decodingError: return "Decoding error"
-        case .validationError: return "Request validation failed"
-        case .requestEncodingError: return "Request encoding failed"
-        case .networkError: return "Network error"
-        case .unknownError: return "Unknown error"
-        }
+    case requestError(RequestError)
+    case responseError(ResponseError, statusCode: Int? = nil, data: Data? = nil)
+
+    public enum RequestError {
+        case encodingError(Error)
+        case validationError(Error)
+    }
+    public enum ResponseError {
+        case emptyResponse
+        case unexpectedStatusCode
+        case decodingError(DecodingError)
+        case networkError(Error)
     }
 }
 
 extension APIClientError: CustomStringConvertible {
 
-    public var description:String {
+    public var name: String {
         switch self {
-        case .unexpectedStatusCode(let statusCode, _): return "\(name): \(statusCode)"
-        case .decodingError(let error): return "\(name): \(error.localizedDescription)\n\(error)"
-        case .validationError(let error): return "\(name): \(error.localizedDescription)"
-        case .requestEncodingError(let error): return "\(name): \(error)"
-        case .networkError(let error, let statusCode, let data): return "\(name): \(statusCode) \(error.localizedDescription)"
-        case .unknownError(let error): return "\(name): \(error.localizedDescription)"
+        case .requestError(.validationError):
+            return "Request validation failed"
+        case .requestError(.encodingError):
+            return "Request encoding failed"
+        case .responseError(.emptyResponse, _, _):
+            return "Empty response"
+        case .responseError(.unexpectedStatusCode, _, _):
+            return "Unexpected status code"
+        case .responseError(.decodingError, _, _):
+            return "Decoding error"
+        case .responseError(.networkError, _, _):
+            return "Network error"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .requestError(.validationError(let error)):
+            return "\(name): \(error.localizedDescription)"
+        case .requestError(.encodingError(let error)):
+            return "\(name): \(error.localizedDescription)"
+        case .responseError(.emptyResponse, _, _):
+            return "\(name)"
+        case .responseError(.unexpectedStatusCode, let code, _):
+            return "\(name): \(code)"
+        case .responseError(.decodingError(let error), _, _):
+            return "\(name): \(error.localizedDescription)"
+        case .responseError(.networkError(let error), _, _):
+            return "\(name): \(error.localizedDescription)"
         }
     }
 }
