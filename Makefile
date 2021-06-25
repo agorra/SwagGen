@@ -17,6 +17,7 @@ install: build
 	mkdir -p $(PREFIX)/bin
 	cp -f $(BUILD_PATH) $(INSTALL_PATH)
 	mkdir -p $(SHARE_PATH)
+	rm -r $(SHARE_PATH)/Templates
 	cp -R $(CURRENT_PATH)/Templates $(SHARE_PATH)/Templates
 
 uninstall:
@@ -39,4 +40,3 @@ release:
 
 	git add .
 	git commit -m "Update to $(VERSION)"
-	#git tag $(VERSION)
