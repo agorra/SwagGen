@@ -17,12 +17,12 @@ install: build
 	mkdir -p $(PREFIX)/bin
 	cp -f $(BUILD_PATH) $(INSTALL_PATH)
 	mkdir -p $(SHARE_PATH)
-	rm -r $(SHARE_PATH)/Templates
+	rm -r $(SHARE_PATH)/Templates || true
 	cp -R $(CURRENT_PATH)/Templates $(SHARE_PATH)/Templates
 
 uninstall:
 	rm -f $(INSTALL_PATH)
-	rm -f $(SHARE_PATH)
+	rm -rf $(SHARE_PATH)
 
 format_code:
 	swiftformat Tests --wraparguments beforefirst --stripunusedargs closure-only --header strip --disable blankLinesAtStartOfScope
