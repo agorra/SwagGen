@@ -47,7 +47,7 @@ extension APIClientError: CustomStringConvertible {
         case .responseError(.emptyResponse, _, _):
             return "\(name)"
         case .responseError(.unexpectedStatusCode, let code, _):
-            return "\(name): \(code)"
+            return "\(name): \(code?.description ?? "–")"
         case .responseError(.decodingError(let error), _, _):
             return "\(name): \(error.localizedDescription)"
         case .responseError(.networkError(let error), _, _):
