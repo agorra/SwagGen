@@ -119,18 +119,19 @@ public class APIClient {
     }
 
     private func makeNetworkRequest<T>(
-        request: APIRequest<T>, 
-        urlRequest: URLRequest, 
-        cancellableRequest: CancellableRequest, 
+        request: APIRequest<T>,
+        urlRequest: URLRequest,
+        cancellableRequest: CancellableRequest,
         requestBehaviour: RequestBehaviourGroup,
-        requestInterceptor: RequestInterceptor?, 
-        completionQueue: DispatchQueue, 
-        complete: @escaping (APIResponse<T>) -> Void) 
+        requestInterceptor: RequestInterceptor?,
+        completionQueue: DispatchQueue,
+        complete: @escaping (APIResponse<T>) -> Void)
     {
         requestBehaviour.beforeSend()
 
+        let networkRequest: DataRequest
         if request.service.isUpload {
-            cancellableRequest.networkRequest = sessionManager.upload(
+            networkRequest = sessionManager.upload(
                 multipartFormData: { multipartFormData in
                     for (name, value) in request.formParameters {
                         if let file = value as? UploadFile {
@@ -159,24 +160,28 @@ public class APIClient {
                 },
                 with: urlRequest
             )
+
         } else {
-            let networkRequest = sessionManager
+            networkRequest = sessionManager
                 .request(urlRequest, interceptor: requestInterceptor)
-                .validate(statusCode: self.acceptableStatusCodes)
-                .responseData(
-                    queue: decodingQueue, 
-                    emptyResponseCodes: self.emptyResponseCodes
-                ) { dataResponse in
-                    self.handleResponse(
-                        request: request, 
-                        requestBehaviour: requestBehaviour, 
-                        dataResponse: dataResponse, 
-                        completionQueue: completionQueue, 
-                        complete: complete
-                    )
-                }
-            cancellableRequest.networkRequest = networkRequest
         }
+
+        networkRequest
+            .validate(statusCode: self.acceptableStatusCodes)
+            .responseData(
+                queue: decodingQueue,
+                emptyResponseCodes: self.emptyResponseCodes
+            ) { dataResponse in
+                self.handleResponse(
+                    request: request,
+                    requestBehaviour: requestBehaviour,
+                    dataResponse: dataResponse,
+                    completionQueue: completionQueue,
+                    complete: complete
+                )
+            }
+
+        cancellableRequest.networkRequest = networkRequest
     }
 
      private func handleResponse<T>(
