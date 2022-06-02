@@ -49,9 +49,18 @@ extension APIClientError: CustomStringConvertible {
         case .responseError(.unexpectedStatusCode, let code, _):
             return "\(name): \(code?.description ?? "–")"
         case .responseError(.decodingError(let error), _, _):
-            return "\(name): \(error.localizedDescription)"
+            return "\(name): \(error.localizedDescription)\n\n\(error.context.debugDescription)"
         case .responseError(.networkError(let error), _, _):
             return "\(name): \(error.localizedDescription)"
+        }
+    }
+}
+
+extension DecodingError {
+    var context: Context {
+        switch self {
+        case .typeMismatch(_, let context), .valueNotFound(_, let context), .keyNotFound(_, let context), .dataCorrupted(let context):
+            return context
         }
     }
 }
