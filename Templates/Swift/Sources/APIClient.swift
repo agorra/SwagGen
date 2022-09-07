@@ -166,13 +166,16 @@ public class APIClient {
                 .request(urlRequest, interceptor: requestInterceptor)
         }
 
+        var task: URLSessionTask?
         networkRequest
+            .onURLSessionTaskCreation { task = $0 }
             .validate(statusCode: self.acceptableStatusCodes)
             .responseData(
                 queue: decodingQueue,
                 emptyResponseCodes: self.emptyResponseCodes
             ) { dataResponse in
                 self.handleResponse(
+                    urlSessionTask: task,
                     request: request,
                     requestBehaviour: requestBehaviour,
                     dataResponse: dataResponse,
@@ -185,6 +188,7 @@ public class APIClient {
     }
 
      private func handleResponse<T>(
+        urlSessionTask: URLSessionTask?,
         request: APIRequest<T>, 
         requestBehaviour: RequestBehaviourGroup, 
         dataResponse: AFDataResponse<Data>, 
@@ -208,11 +212,17 @@ public class APIClient {
                 result = .success(decoded)
                 if decoded.successful {
                     requestBehaviour.onSuccess(result: decoded.response as Any)
+                    if let urlSessionTask = urlSessionTask {
+                        requestBehaviour.onDecoding(urlSessionTask: urlSessionTask, error: nil)
+                    }
                 }
             } catch let error {
                 let apiError: APIClientError
                 if let error = error as? DecodingError {
                     apiError = .responseError(.decodingError(error), statusCode: statusCode, data: value)
+                    if let urlSessionTask = urlSessionTask {
+                        requestBehaviour.onDecoding(urlSessionTask: urlSessionTask, error: error)
+                    }
                 } else if let error = error as? APIClientError {
                     apiError = error
                 } else {

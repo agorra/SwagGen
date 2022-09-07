@@ -21,6 +21,9 @@ public protocol RequestBehaviour {
 
     /// called if the request recieves a network response. This is not called if request fails validation or encoding
     func onResponse(request: AnyRequest, response: AnyResponse)
+
+    /// called after response decoding
+    func onDecoding(urlSessionTask task: URLSessionTask, error: Error?)
 }
 
 public enum RequestValidationResult {
@@ -38,6 +41,7 @@ public extension RequestBehaviour {
     func onSuccess(request: AnyRequest, result: Any) {}
     func onFailure(request: AnyRequest, error: APIClientError) {}
     func onResponse(request: AnyRequest, response: AnyResponse) {}
+    func onDecoding(urlSessionTask task: URLSessionTask, error: Error?) {}
 }
 
 // Group different RequestBehaviours together
@@ -109,6 +113,12 @@ struct RequestBehaviourGroup {
             urlRequest = $0.modifyRequest(request: request, urlRequest: urlRequest)
         }
         return urlRequest
+    }
+
+    func onDecoding(urlSessionTask task: URLSessionTask, error: Error?) {
+        behaviours.forEach {
+            $0.onDecoding(urlSessionTask: task, error: error)
+        }
     }
 }
 
