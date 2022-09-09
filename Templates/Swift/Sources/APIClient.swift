@@ -14,8 +14,8 @@ public class APIClient {
     /// The base url prepended before every request path
     public var baseURL: String
 
-    /// The Alamofire SessionManager used for each request
-    public var sessionManager: Session
+    /// The Alamofire session used for each request
+    public var session: Session
 
     /// These headers will get added to every request
     public var defaultHeaders: [String: String]
@@ -33,14 +33,14 @@ public class APIClient {
 
     public init(
         baseURL: String, 
-        sessionManager: Session = .default, 
+        session: Session = .default, 
         defaultHeaders: [String: String] = [:], 
         behaviours: [RequestBehaviour] = [], 
         emptyResponseCodes: Set<Int> = DataResponseSerializer.defaultEmptyResponseCodes,
         acceptableStatusCodes: Range<Int> = 200..<300
     ) {
         self.baseURL = baseURL
-        self.sessionManager = sessionManager
+        self.session = session
         self.behaviours = behaviours
         self.defaultHeaders = defaultHeaders
         self.emptyResponseCodes = emptyResponseCodes
@@ -131,7 +131,7 @@ public class APIClient {
 
         let networkRequest: DataRequest
         if request.service.isUpload {
-            networkRequest = sessionManager.upload(
+            networkRequest = session.upload(
                 multipartFormData: { multipartFormData in
                     for (name, value) in request.formParameters {
                         if let file = value as? UploadFile {
@@ -162,7 +162,7 @@ public class APIClient {
             )
 
         } else {
-            networkRequest = sessionManager
+            networkRequest = session
                 .request(urlRequest, interceptor: requestInterceptor)
         }
 
