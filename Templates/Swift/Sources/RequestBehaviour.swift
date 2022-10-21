@@ -14,16 +14,13 @@ public protocol RequestBehaviour {
     func beforeSend(request: AnyRequest)
 
     /// called when request successfuly returns a 200 range response
-    func onSuccess(request: AnyRequest, result: Any)
+    func onSuccess(urlSessionTask task: URLSessionTask, request: AnyRequest, result: Any)
 
     /// called when request fails with an error. This will not be called if the request returns a known response even if the a status code is out of the 200 range
-    func onFailure(request: AnyRequest, error: APIClientError)
+    func onFailure(urlSessionTask task: URLSessionTask?, request: AnyRequest, error: APIClientError)
 
     /// called if the request recieves a network response. This is not called if request fails validation or encoding
-    func onResponse(request: AnyRequest, response: AnyResponse)
-
-    /// called after response decoding
-    func onDecoding(urlSessionTask task: URLSessionTask, error: Error?)
+    func onResponse(urlSessionTask task: URLSessionTask, request: AnyRequest, response: AnyResponse)
 }
 
 public enum RequestValidationResult {
@@ -38,10 +35,9 @@ public extension RequestBehaviour {
         complete(.success(urlRequest))
     }
     func beforeSend(request: AnyRequest) {}
-    func onSuccess(request: AnyRequest, result: Any) {}
-    func onFailure(request: AnyRequest, error: APIClientError) {}
-    func onResponse(request: AnyRequest, response: AnyResponse) {}
-    func onDecoding(urlSessionTask task: URLSessionTask, error: Error?) {}
+    func onSuccess(urlSessionTask task: URLSessionTask, request: AnyRequest, result: Any) {}
+    func onFailure(urlSessionTask task: URLSessionTask?, request: AnyRequest, error: APIClientError) {}
+    func onResponse(urlSessionTask task: URLSessionTask, request: AnyRequest, response: AnyResponse) {}
 }
 
 // Group different RequestBehaviours together
@@ -89,21 +85,21 @@ struct RequestBehaviourGroup {
         validateNext()
     }
 
-    func onSuccess(result: Any) {
+    func onSuccess(urlSessionTask task: URLSessionTask, result: Any) {
         behaviours.forEach {
-            $0.onSuccess(request: request, result: result)
+            $0.onSuccess(urlSessionTask: task, request: request, result: result)
         }
     }
 
-    func onFailure(error: APIClientError) {
+    func onFailure(urlSessionTask task: URLSessionTask?, error: APIClientError) {
         behaviours.forEach {
-            $0.onFailure(request: request, error: error)
+            $0.onFailure(urlSessionTask: task, request: request, error: error)
         }
     }
 
-    func onResponse(response: AnyResponse) {
+    func onResponse(urlSessionTask task: URLSessionTask, response: AnyResponse) {
         behaviours.forEach {
-            $0.onResponse(request: request, response: response)
+            $0.onResponse(urlSessionTask: task, request: request, response: response)
         }
     }
 
@@ -113,12 +109,6 @@ struct RequestBehaviourGroup {
             urlRequest = $0.modifyRequest(request: request, urlRequest: urlRequest)
         }
         return urlRequest
-    }
-
-    func onDecoding(urlSessionTask task: URLSessionTask, error: Error?) {
-        behaviours.forEach {
-            $0.onDecoding(urlSessionTask: task, error: error)
-        }
     }
 }
 

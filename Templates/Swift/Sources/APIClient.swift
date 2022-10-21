@@ -78,7 +78,7 @@ public class APIClient {
             urlRequest = try request.createURLRequest(baseURL: safeURL, encoder: jsonEncoder)
         } catch {
             let error = APIClientError.requestError(.encodingError(error))
-            requestBehaviour.onFailure(error: error)
+            requestBehaviour.onFailure(urlSessionTask: nil, error: error)
             let response = APIResponse<T>(request: request, result: .failure(error))
             complete(response)
             return nil
@@ -111,7 +111,7 @@ public class APIClient {
             case .failure(let error):
                 let error = APIClientError.requestError(.validationError(error))
                 let response = APIResponse<T>(request: request, result: .failure(error), urlRequest: urlRequest)
-                requestBehaviour.onFailure(error: error)
+                requestBehaviour.onFailure(urlSessionTask: nil, error: error)
                 complete(response)
             }
         }
@@ -166,7 +166,7 @@ public class APIClient {
                 .request(urlRequest, interceptor: requestInterceptor)
         }
 
-        var task: URLSessionTask?
+        var task: URLSessionTask = .init()
         networkRequest
             .onURLSessionTaskCreation { task = $0 }
             .validate(statusCode: self.acceptableStatusCodes)
@@ -188,7 +188,7 @@ public class APIClient {
     }
 
      private func handleResponse<T>(
-        urlSessionTask: URLSessionTask?,
+        urlSessionTask: URLSessionTask,
         request: APIRequest<T>, 
         requestBehaviour: RequestBehaviourGroup, 
         dataResponse: AFDataResponse<Data>, 
@@ -203,7 +203,7 @@ public class APIClient {
             guard let statusCode = dataResponse.response?.statusCode else {
                 let apiError = APIClientError.responseError(.emptyResponse)
                 result = .failure(apiError)
-                requestBehaviour.onFailure(error: apiError)
+                requestBehaviour.onFailure(urlSessionTask: urlSessionTask, error: apiError)
                 break
             }
 
@@ -211,18 +211,12 @@ public class APIClient {
                 let decoded = try T(statusCode: statusCode, data: value, decoder: jsonDecoder)
                 result = .success(decoded)
                 if decoded.successful {
-                    requestBehaviour.onSuccess(result: decoded.response as Any)
-                    if let urlSessionTask = urlSessionTask {
-                        requestBehaviour.onDecoding(urlSessionTask: urlSessionTask, error: nil)
-                    }
+                    requestBehaviour.onSuccess(urlSessionTask: urlSessionTask, result: decoded.response as Any)
                 }
             } catch let error {
                 let apiError: APIClientError
                 if let error = error as? DecodingError {
                     apiError = .responseError(.decodingError(error), statusCode: statusCode, data: value)
-                    if let urlSessionTask = urlSessionTask {
-                        requestBehaviour.onDecoding(urlSessionTask: urlSessionTask, error: error)
-                    }
                 } else if let error = error as? APIClientError {
                     apiError = error
                 } else {
@@ -230,7 +224,7 @@ public class APIClient {
                 }
 
                 result = .failure(apiError)
-                requestBehaviour.onFailure(error: apiError)
+                requestBehaviour.onFailure(urlSessionTask: urlSessionTask, error: apiError)
             }
 
         case .failure(let error):
@@ -246,7 +240,7 @@ public class APIClient {
                 apiError = .responseError(.networkError(error), data: dataResponse.data)
             }
             result = .failure(apiError)
-            requestBehaviour.onFailure(error: apiError)
+            requestBehaviour.onFailure(urlSessionTask: urlSessionTask, error: apiError)
         }
         let response = APIResponse<T>(
             request: request,
@@ -256,7 +250,7 @@ public class APIClient {
             data: dataResponse.data,
             metrics: dataResponse.metrics
         )
-        requestBehaviour.onResponse(response: response.asAny())
+        requestBehaviour.onResponse(urlSessionTask: urlSessionTask, response: response.asAny())
 
         completionQueue.async {
             complete(response)
